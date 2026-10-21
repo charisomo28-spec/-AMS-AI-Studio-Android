@@ -17,6 +17,21 @@ jobs:
           test -f extracted/www/index.html
           cp -R extracted/www .
           test -f www/index.html
+      - name: Position AMS chat composer above Android navigation
+        run: |
+          test -f patches/ams-mobile-chat.js
+          cp patches/ams-mobile-chat.js www/ams-mobile-chat.js
+          python3 - <<'PY'
+          from pathlib import Path
+          html = Path('www/index.html')
+          content = html.read_text(encoding='utf-8')
+          marker = '<script defer src="ams-mobile-chat.js"></script>'
+          if marker not in content:
+              if '</body>' not in content:
+                  raise SystemExit('Cannot inject AMS chat patch: closing body tag missing')
+              content = content.replace('</body>', marker + '\n</body>')
+              html.write_text(content, encoding='utf-8')
+          PY
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
