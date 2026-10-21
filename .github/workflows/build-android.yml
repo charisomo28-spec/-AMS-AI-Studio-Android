@@ -19,7 +19,7 @@ jobs:
           test -f www/index.html
           test -f www/app.js
           node --check www/app.js
-      - name: Position AMS chat composer above Android navigation
+      - name: Integrate AMS Editor, Chat and native AI controls
         run: |
           test -f patches/ams-mobile-chat.js
           cp patches/ams-mobile-chat.js www/ams-mobile-chat.js
@@ -27,15 +27,18 @@ jobs:
           test -f patches/ams-sticky-editor.js
           cp patches/ams-sticky-editor.js www/ams-sticky-editor.js
           node --check www/ams-sticky-editor.js
+          test -f patches/ams-image-engine.js
+          cp patches/ams-image-engine.js www/ams-image-engine.js
+          node --check www/ams-image-engine.js
           python3 - <<'PY'
           from pathlib import Path
           html = Path('www/index.html')
           content = html.read_text(encoding='utf-8')
-          marker = '<script defer src="ams-mobile-chat.js"></script><script defer src="ams-sticky-editor.js"></script>'
+          marker = '<script defer src="ams-mobile-chat.js"></script><script defer src="ams-sticky-editor.js"></script><script defer src="ams-image-engine.js"></script>'
           import re
           content = re.sub(r'<meta[^>]+name=[^>]*viewport[^>]*>', '', content, flags=re.I)
           content = content.replace('</head>', '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head>')
-          if 'ams-sticky-editor.js' not in content:
+          if 'ams-image-engine.js' not in content:
               if '</body>' not in content:
                   raise SystemExit('Cannot inject AMS chat patch: closing body tag missing')
               content = content.replace('</body>', marker + '</body>')
@@ -60,7 +63,9 @@ jobs:
           SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
           test -n "$SDKMANAGER"
           "$SDKMANAGER" --licenses < /dev/null || true
-          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
+          command -v cmake
+          command -v ninja
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Prepare Android project
@@ -75,14 +80,19 @@ jobs:
           gradle = Path('android/app/build.gradle')
           src = gradle.read_text()
           import re
-          src, n = re.subn(r'versionCode\s+\d+', 'versionCode 2', src, count=1)
+          src, n = re.subn(r'versionCode\s+\d+', 'versionCode 3', src, count=1)
           if n != 1:
               raise SystemExit('Android versionCode missing')
-          src, n = re.subn(r'versionName\s+["\x27][^"\x27]+["\x27]', 'versionName "0.1.1"', src, count=1)
+          src, n = re.subn(r'versionName\s+["\x27][^"\x27]+["\x27]', 'versionName "0.2.0"', src, count=1)
           if n != 1:
               raise SystemExit('Android versionName missing')
           gradle.write_text(src)
           PY
+      - name: Compile Android-native SD.cpp engine and register bridge
+        run: |
+          bash native/install-engine.sh
+          test -s android/app/src/main/jniLibs/arm64-v8a/libams_sd_cli.so
+          grep -R -q 'registerPlugin(AmsImageEnginePlugin.class)' android/app/src/main/java
       - name: Build debug APK
         working-directory: android
         run: |
@@ -94,9 +104,12 @@ jobs:
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/index.html'
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/ams-mobile-chat.js'
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/ams-sticky-editor.js'
+          unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/ams-image-engine.js'
+          unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'lib/arm64-v8a/libams_sd_cli.so'
+          unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/ams-sdcpp-MIT-LICENSE.txt'
           unzip -p android/app/build/outputs/apk/debug/app-debug.apk assets/public/index.html | grep -q 'ams-mobile-chat.js'
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx "assets/public/app.js"
-          echo "APK built and AMS web assets included"
+          echo "APK built with SD.cpp native binary and AMS image engine UI. On-device inference still requires imported weights and a runtime test."
       - uses: actions/upload-artifact@v4
         with:
           name: AMS-AI-Studio-debug-APK
