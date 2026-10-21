@@ -1,6 +1,7 @@
 package com.amsphotography.aistudio;
 
 import android.app.Activity;
+import androidx.activity.result.ActivityResult;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -8,7 +9,6 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.MediaStore;
-import android.webkit.MimeTypeMap;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -85,7 +85,7 @@ public class AmsImageEnginePlugin extends Plugin {
         chooseFile(call, "image/*", "onImagePicked");
     }
     @ActivityCallback
-    private void onModelPicked(PluginCall call, android.app.ActivityResult result) {
+    private void onModelPicked(PluginCall call, ActivityResult result) {
         if (call == null) return;
         Intent data = result.getData();
         if (result.getResultCode() != Activity.RESULT_OK || data == null || data.getData() == null) {
@@ -135,7 +135,7 @@ public class AmsImageEnginePlugin extends Plugin {
         });
     }
     @ActivityCallback
-    private void onImagePicked(PluginCall call, android.app.ActivityResult result) {
+    private void onImagePicked(PluginCall call, ActivityResult result) {
         if (call == null) return;
         Intent data = result.getData();
         if (result.getResultCode() != Activity.RESULT_OK || data == null || data.getData() == null) {
