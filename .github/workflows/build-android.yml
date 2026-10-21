@@ -65,6 +65,8 @@ jobs:
           if [ ! -d android ]; then npx cap add android; fi
           npx cap sync android
           test -f android/app/build.gradle
+          test -f android/app/src/main/AndroidManifest.xml
+          grep -q "com.amsphotography.aistudio" android/app/build.gradle || grep -q "com.amsphotography.aistudio" android/app/src/main/AndroidManifest.xml
           python3 - <<'PY'
           from pathlib import Path
           gradle = Path('android/app/build.gradle')
@@ -89,6 +91,7 @@ jobs:
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/index.html'
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/ams-mobile-chat.js'
           unzip -p android/app/build/outputs/apk/debug/app-debug.apk assets/public/index.html | grep -q 'ams-mobile-chat.js'
+          unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx "assets/public/app.js"
           echo "APK built and AMS web assets included"
       - uses: actions/upload-artifact@v4
         with:
