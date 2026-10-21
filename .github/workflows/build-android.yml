@@ -17,10 +17,13 @@ jobs:
           test -f extracted/www/index.html
           cp -R extracted/www .
           test -f www/index.html
+          test -f www/app.js
+          node --check www/app.js
       - name: Position AMS chat composer above Android navigation
         run: |
           test -f patches/ams-mobile-chat.js
           cp patches/ams-mobile-chat.js www/ams-mobile-chat.js
+          node --check www/ams-mobile-chat.js
           python3 - <<'PY'
           from pathlib import Path
           html = Path('www/index.html')
