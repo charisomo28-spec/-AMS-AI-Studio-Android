@@ -24,15 +24,18 @@ jobs:
           test -f patches/ams-mobile-chat.js
           cp patches/ams-mobile-chat.js www/ams-mobile-chat.js
           node --check www/ams-mobile-chat.js
+          test -f patches/ams-sticky-editor.js
+          cp patches/ams-sticky-editor.js www/ams-sticky-editor.js
+          node --check www/ams-sticky-editor.js
           python3 - <<'PY'
           from pathlib import Path
           html = Path('www/index.html')
           content = html.read_text(encoding='utf-8')
-          marker = '<script defer src="ams-mobile-chat.js"></script>'
+          marker = '<script defer src="ams-mobile-chat.js"></script><script defer src="ams-sticky-editor.js"></script>'
           import re
           content = re.sub(r'<meta[^>]+name=[^>]*viewport[^>]*>', '', content, flags=re.I)
           content = content.replace('</head>', '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head>')
-          if marker not in content:
+          if 'ams-sticky-editor.js' not in content:
               if '</body>' not in content:
                   raise SystemExit('Cannot inject AMS chat patch: closing body tag missing')
               content = content.replace('</body>', marker + '</body>')
@@ -90,6 +93,7 @@ jobs:
           test -s android/app/build/outputs/apk/debug/app-debug.apk
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/index.html'
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/ams-mobile-chat.js'
+          unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/ams-sticky-editor.js'
           unzip -p android/app/build/outputs/apk/debug/app-debug.apk assets/public/index.html | grep -q 'ams-mobile-chat.js'
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx "assets/public/app.js"
           echo "APK built and AMS web assets included"
