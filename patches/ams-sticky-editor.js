@@ -59,7 +59,7 @@
     let node = before.parentElement;
     for (let i = 0; node && i < 5; i++, node = node.parentElement) {
       const media = [...node.querySelectorAll("img,canvas")]
-        .filter(el => isVisible(el) && el.getBoundingClientRect().width > 110 &&
+        .filter(el => !el.closest("#ams-pinned-preview") && isVisible(el) && el.getBoundingClientRect().width > 110 &&
           el.getBoundingClientRect().height > 100);
       if (media.length) return media.sort((a,b) =>
         b.getBoundingClientRect().width * b.getBoundingClientRect().height -
