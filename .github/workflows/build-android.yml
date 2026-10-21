@@ -43,14 +43,15 @@ jobs:
           distribution: temurin
           java-version: '21'
       - name: Configure Android SDK
-        env:
-          ANDROID_HOME: /usr/local/lib/android/sdk
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
-          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
-          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
-          test -d "$ANDROID_HOME"
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --version
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          test -d "$SDK_ROOT"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+          echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          test -f "$SDK_ROOT/platform-tools/adb" || echo "ADB will be installed by Gradle if needed"
+          echo "Android SDK directory: $SDK_ROOT"
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Prepare Android project
@@ -66,7 +67,8 @@ jobs:
         run: |
           test -s android/app/build/outputs/apk/debug/app-debug.apk
           unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep -q 'assets/public/index.html'
-          unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep -q 'assets/public/app.js'
+          unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep -q 'assets/public/ams-mobile-chat.js'
+          unzip -p android/app/build/outputs/apk/debug/app-debug.apk assets/public/index.html | grep -q 'ams-mobile-chat.js'
           echo "APK built and AMS web assets included"
       - uses: actions/upload-artifact@v4
         with:
