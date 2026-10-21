@@ -58,6 +58,20 @@ jobs:
         run: |
           npx cap add android
           npx cap sync android
+          test -f android/app/build.gradle
+          python3 - <<'PY'
+          from pathlib import Path
+          gradle = Path('android/app/build.gradle')
+          src = gradle.read_text()
+          import re
+          src, n = re.subn(r'versionCode\s+\d+', 'versionCode 2', src, count=1)
+          if n != 1:
+              raise SystemExit('Android versionCode missing')
+          src, n = re.subn(r'versionName\s+["\x27][^"\x27]+["\x27]', 'versionName "0.1.1"', count=1)
+          if n != 1:
+              raise SystemExit('Android versionName missing')
+          gradle.write_text(src)
+          PY
       - name: Build debug APK
         working-directory: android
         run: |
