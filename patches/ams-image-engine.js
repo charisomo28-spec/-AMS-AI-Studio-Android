@@ -138,11 +138,11 @@
   function position() {
     const button=[...document.querySelectorAll("button")].find(b=>
       b!==open && b.getClientRects().length && /hold to see before/i.test(b.textContent||""));
-    if(!button) { open.style.display="none"; return; }
+    if(!button) { if(open.style.display!=="none") open.style.display="none"; return; }
     const slot=button.parentElement;
     if(!slot)return;
     if(open.parentElement!==slot)slot.appendChild(open);
-    open.style.display="inline-flex";
+    if(open.style.display!=="inline-flex") open.style.display="inline-flex";
   }
   // DOM changes only drive button placement; they do not trigger any AI inference.
   let queued=false;
