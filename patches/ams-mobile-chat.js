@@ -17,7 +17,7 @@
     }
   `;
   style.textContent += `
-    html { padding-top: env(safe-area-inset-top, 0px); }
+    html { padding-top: 0; }
     body { padding-top: 0 !important; }
     .ams-mobile-chat .ams-mobile-composer { box-sizing: border-box; }
     .ams-mobile-modes {
@@ -54,6 +54,14 @@
       modeRow.classList.add('ams-mobile-modes');
     }
   }
-  new MutationObserver(positionComposer).observe(document.body, {childList:true,subtree:true});
+  let queued = false;
+  new MutationObserver(() => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      positionComposer();
+    });
+  }).observe(document.body, {childList:true,subtree:true});
   positionComposer();
 })();
