@@ -66,7 +66,7 @@ jobs:
           npx cap sync android
           test -f android/app/build.gradle
           test -f android/app/src/main/AndroidManifest.xml
-          grep -q "com.amsphotography.aistudio" android/app/build.gradle || grep -q "com.amsphotography.aistudio" android/app/src/main/AndroidManifest.xml
+          grep -R -q "com.amsphotography.aistudio" android/app/build.gradle android/app/src/main/AndroidManifest.xml android/app/src/main/java || { echo "Wrong AMS application ID"; exit 1; }
           python3 - <<'PY'
           from pathlib import Path
           gradle = Path('android/app/build.gradle')
