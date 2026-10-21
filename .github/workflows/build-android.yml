@@ -88,6 +88,8 @@ jobs:
               raise SystemExit('Android versionName missing')
           gradle.write_text(src)
           PY
+      - name: Assert native AI integrity
+        run: node tests/engine-integrity.test.cjs
       - name: Compile Android-native SD.cpp engine and register bridge
         run: |
           bash native/install-engine.sh
