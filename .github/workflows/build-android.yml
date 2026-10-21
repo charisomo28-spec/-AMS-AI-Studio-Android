@@ -56,7 +56,7 @@ jobs:
           echo "Android SDK directory: $SDK_ROOT"
           SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
           test -n "$SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --licenses < /dev/null || true
           "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
       - name: Install dependencies
         run: npm install --no-audit --no-fund
@@ -86,8 +86,8 @@ jobs:
       - name: Verify APK and bundled web application
         run: |
           test -s android/app/build/outputs/apk/debug/app-debug.apk
-          unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep -q 'assets/public/index.html'
-          unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep -q 'assets/public/ams-mobile-chat.js'
+          unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/index.html'
+          unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/ams-mobile-chat.js'
           unzip -p android/app/build/outputs/apk/debug/app-debug.apk assets/public/index.html | grep -q 'ams-mobile-chat.js'
           echo "APK built and AMS web assets included"
       - uses: actions/upload-artifact@v4
