@@ -75,7 +75,7 @@ jobs:
           src, n = re.subn(r'versionCode\s+\d+', 'versionCode 2', src, count=1)
           if n != 1:
               raise SystemExit('Android versionCode missing')
-          src, n = re.subn(r'versionName\s+["\x27][^"\x27]+["\x27]', 'versionName "0.1.1"', count=1)
+          src, n = re.subn(r'versionName\s+["\x27][^"\x27]+["\x27]', 'versionName "0.1.1"', src, count=1)
           if n != 1:
               raise SystemExit('Android versionName missing')
           gradle.write_text(src)
