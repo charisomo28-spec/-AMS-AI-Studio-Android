@@ -16,6 +16,19 @@
       .ams-mobile-composer { bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important; }
     }
   `;
+  style.textContent += `
+    html { padding-top: env(safe-area-inset-top, 0px); }
+    body { padding-top: 0 !important; }
+    .ams-mobile-chat .ams-mobile-composer { box-sizing: border-box; }
+    .ams-mobile-modes {
+      position: fixed !important;
+      left: 16px !important;
+      right: 16px !important;
+      bottom: calc(170px + env(safe-area-inset-bottom, 0px)) !important;
+      z-index: 999 !important;
+      width: auto !important;
+    }
+  `;
   document.head.appendChild(style);
   function positionComposer() {
     const inputs = [...document.querySelectorAll('input, textarea')];
@@ -34,6 +47,12 @@
     });
     composer.classList.add('ams-mobile-composer');
     document.body.classList.add('ams-mobile-chat');
+    const modeButton = [...document.querySelectorAll('button')].find(el => el.textContent.trim() === 'AUTO');
+    const modeRow = modeButton?.parentElement;
+    if (modeRow && ['BRIGHT','CLEAN','INTENSE'].every(label =>
+      [...modeRow.querySelectorAll('button')].some(el => el.textContent.trim() === label))) {
+      modeRow.classList.add('ams-mobile-modes');
+    }
   }
   new MutationObserver(positionComposer).observe(document.body, {childList:true,subtree:true});
   positionComposer();
