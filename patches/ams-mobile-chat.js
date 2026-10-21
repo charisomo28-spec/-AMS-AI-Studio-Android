@@ -33,7 +33,12 @@
   function positionComposer() {
     const inputs = [...document.querySelectorAll('input, textarea')];
     const input = inputs.find(el => /describe your edit or ask ams/i.test(el.getAttribute('placeholder') || ''));
-    if (!input) return;
+    if (!input || !input.getClientRects().length) {
+      document.querySelectorAll('.ams-mobile-composer').forEach(el => el.classList.remove('ams-mobile-composer'));
+      document.querySelectorAll('.ams-mobile-modes').forEach(el => el.classList.remove('ams-mobile-modes'));
+      document.body.classList.remove('ams-mobile-chat');
+      return;
+    }
     // The composer contains the text field and the send control, not the whole chat.
     let composer = input.parentElement;
     for (let i = 0; i < 4 && composer?.parentElement; i++) {
@@ -47,7 +52,10 @@
     });
     composer.classList.add('ams-mobile-composer');
     document.body.classList.add('ams-mobile-chat');
-    const modeButton = [...document.querySelectorAll('button')].find(el => el.textContent.trim() === 'AUTO');
+    document.querySelectorAll('.ams-mobile-modes').forEach(el => el.classList.remove('ams-mobile-modes'));
+    const modeButton = [...document.querySelectorAll('button')].find(el =>
+      el.textContent.trim() === 'AUTO' && el.getClientRects().length &&
+      !el.closest('#ams-pinned-preview'));
     const modeRow = modeButton?.parentElement;
     if (modeRow && ['BRIGHT','CLEAN','INTENSE'].every(label =>
       [...modeRow.querySelectorAll('button')].some(el => el.textContent.trim() === label))) {
