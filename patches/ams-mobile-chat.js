@@ -52,7 +52,6 @@
     });
     composer.classList.add('ams-mobile-composer');
     document.body.classList.add('ams-mobile-chat');
-    document.querySelectorAll('.ams-mobile-modes').forEach(el => el.classList.remove('ams-mobile-modes'));
     const modeButton = [...document.querySelectorAll('button')].find(el =>
       el.textContent.trim() === 'AUTO' && el.getClientRects().length &&
       !el.closest('#ams-pinned-preview'));
