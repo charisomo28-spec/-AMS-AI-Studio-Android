@@ -50,13 +50,16 @@ jobs:
           echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
           echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
-          test -f "$SDK_ROOT/platform-tools/adb" || echo "ADB will be installed by Gradle if needed"
           echo "Android SDK directory: $SDK_ROOT"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Prepare Android project
         run: |
-          npx cap add android
+          if [ ! -d android ]; then npx cap add android; fi
           npx cap sync android
           test -f android/app/build.gradle
           python3 - <<'PY'
@@ -76,7 +79,7 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew --no-daemon assembleDebug
       - name: Verify APK and bundled web application
         run: |
           test -s android/app/build/outputs/apk/debug/app-debug.apk
