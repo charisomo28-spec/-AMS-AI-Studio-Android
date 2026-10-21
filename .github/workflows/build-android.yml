@@ -36,6 +36,12 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
+      - name: Verify APK and bundled web application
+        run: |
+          test -s android/app/build/outputs/apk/debug/app-debug.apk
+          unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep -q 'assets/public/index.html'
+          unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep -q 'assets/public/app.js'
+          echo "APK built and AMS web assets included"
       - uses: actions/upload-artifact@v4
         with:
           name: AMS-AI-Studio-debug-APK
