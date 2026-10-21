@@ -1,1 +1,17 @@
-{"name":"ams-ai-studio-android","version":"0.1.0","private":true,"scripts":{"android:init":"npx cap add android","android:sync":"npx cap sync android"},"dependencies":{"@capacitor/android":"^7.4.0","@capacitor/core":"^7.4.0"},"devDependencies":{"@capacitor/cli":"^7.4.0"}}
+{
+  "name": "ams-ai-studio-android",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "android:init": "npx cap add android",
+    "android:sync": "npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.0",
+    "@capacitor/core": "^7.4.0",
+    "@capacitor/status-bar": "^7.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.0"
+  }
+}
