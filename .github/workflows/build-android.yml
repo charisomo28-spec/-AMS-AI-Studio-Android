@@ -65,8 +65,26 @@ jobs:
           echo "Android SDK directory: $SDK_ROOT"
           SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
           test -n "$SDKMANAGER"
-          "$SDKMANAGER" --licenses < /dev/null || true
-          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
+          # Accept licenses non-interactively; fail on a real setup error.
+          yes | "$SDKMANAGER" --licenses > /tmp/ams-sdk-licenses.log 2>&1 || {
+            cat /tmp/ams-sdk-licenses.log
+            exit 1
+          }
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          # GitHub-hosted runners may already contain the pinned NDK.
+          NDK_DIR="$SDK_ROOT/ndk/27.2.12479018"
+          if [ ! -f "$NDK_DIR/build/cmake/android.toolchain.cmake" ]; then
+            for attempt in 1 2 3; do
+              echo "Installing Android NDK 27.2.12479018 (attempt $attempt/3)"
+              if "$SDKMANAGER" "ndk;27.2.12479018"; then break; fi
+              if [ "$attempt" -eq 3 ]; then
+                echo "::error::NDK download failed after three attempts"
+                exit 1
+              fi
+              sleep $((attempt * 20))
+            done
+          fi
+          test -f "$NDK_DIR/build/cmake/android.toolchain.cmake"
           command -v cmake
           command -v ninja
       - name: Install dependencies
