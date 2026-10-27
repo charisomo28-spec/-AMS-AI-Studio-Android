@@ -36,6 +36,8 @@ jobs:
           test -f patches/ams-ai-system-status.js
           cp patches/ams-ai-system-status.js www/ams-ai-system-status.js
           node --check www/ams-ai-system-status.js
+          python3 patches/apply-g2-editor.py
+          node --check www/app.js
           python3 - <<'PY'
           from pathlib import Path
           html = Path('www/index.html')
@@ -136,6 +138,9 @@ jobs:
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/ams-sdcpp-MIT-LICENSE.txt'
           unzip -p android/app/build/outputs/apk/debug/app-debug.apk assets/public/index.html | grep -q 'ams-mobile-chat.js'
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx "assets/public/app.js"
+          unzip -p android/app/build/outputs/apk/debug/app-debug.apk assets/public/app.js | grep -Fq 'Export dimensions differ from original'
+          unzip -p android/app/build/outputs/apk/debug/app-debug.apk assets/public/app.js | grep -Fq 'ctx.drawImage(im,0,0,width,height)'
+          echo "G2 full-resolution export patch included (device save still requires runtime verification)."
           echo "APK built with SD.cpp native binary and AMS image engine UI. On-device inference still requires imported weights and a runtime test."
       - uses: actions/upload-artifact@v4
         with:
