@@ -38,7 +38,8 @@ async function exportJpg(){
     decoded.close();
     if(!verified)throw Error('Export dimensions differ from original');
     if(!window.Capacitor?.isNativePlatform?.())throw Error('Native Android save unavailable');
-    const saver=window.Capacitor.registerPlugin('AmsPhotoSave');
+    const saver=window.Capacitor?.Plugins?.AmsPhotoSave;
+    if(typeof saver?.saveJpeg!=='function')throw Error('Android AmsPhotoSave bridge unavailable');
     const base64=await new Promise((resolve,reject)=>{
       const reader=new FileReader();
       reader.onerror=()=>reject(Error('JPEG base64 conversion failed'));
