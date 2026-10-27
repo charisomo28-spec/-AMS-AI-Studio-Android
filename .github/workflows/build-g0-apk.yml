@@ -34,6 +34,8 @@ jobs:
           test -f patches/ams-ai-system-status.js
           cp patches/ams-ai-system-status.js www/ams-ai-system-status.js
           node --check www/ams-ai-system-status.js
+          cp patches/ams-engine-updates.js www/ams-engine-updates.js
+          node --check www/ams-engine-updates.js
           cp patches/ams-g3-chat-bridge.js www/ams-g3-chat-bridge.js
           node --check www/ams-g3-chat-bridge.js
           python3 patches/apply-g2-editor.py
@@ -51,6 +53,7 @@ jobs:
                   raise SystemExit('Cannot inject AMS chat patch: closing body tag missing')
               content = content.replace('</body>', marker + '</body>')
           content = content.replace('</body>', '<script defer src="ams-g3-chat-bridge.js"></script></body>')
+          content = content.replace('</body>', '<script defer src="ams-engine-updates.js"></script></body>')
           html.write_text(content, encoding='utf-8')
           PY
       - uses: actions/setup-node@v4
@@ -120,6 +123,19 @@ jobs:
       - name: Compile Android-native SD.cpp engine and register bridge
         run: |
           bash native/install-engine.sh
+          python3 - <<'PY'
+          from pathlib import Path
+          candidates=list(Path('android/app/src/main/java').rglob('MainActivity.java'))
+          if len(candidates)!=1: raise SystemExit('MainActivity missing or ambiguous')
+          main=candidates[0]
+          src=main.read_text()
+          marker='registerPlugin(AmsImageEnginePlugin.class);'
+          if marker not in src: raise SystemExit('Native image plugin registration not found')
+          src=src.replace(marker,marker+'\n        registerPlugin(AmsEngineManagerPlugin.class);',1)
+          main.write_text(src)
+          (main.parent/'AmsEngineManagerPlugin.java').write_bytes(Path('native/AmsEngineManagerPlugin.java').read_bytes())
+          PY
+          grep -R -q 'registerPlugin(AmsEngineManagerPlugin.class)' android/app/src/main/java
           test -s android/app/src/main/jniLibs/arm64-v8a/libams_sd_cli.so
           grep -R -q 'registerPlugin(AmsImageEnginePlugin.class)' android/app/src/main/java
       - name: Build debug APK
@@ -193,6 +209,7 @@ jobs:
           if unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fxq 'assets/public/ams-sticky-editor.js'; then echo '::error::Floating overlay still bundled'; exit 1; fi
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/ams-image-engine.js'
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/ams-ai-system-status.js'
+          unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/ams-engine-updates.js'
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'lib/arm64-v8a/libams_sd_cli.so'
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/ams-sdcpp-MIT-LICENSE.txt'
           unzip -p android/app/build/outputs/apk/debug/app-debug.apk assets/public/index.html | grep -q 'ams-mobile-chat.js'
