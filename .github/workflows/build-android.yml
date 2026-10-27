@@ -34,6 +34,8 @@ jobs:
           test -f patches/ams-ai-system-status.js
           cp patches/ams-ai-system-status.js www/ams-ai-system-status.js
           node --check www/ams-ai-system-status.js
+          cp patches/ams-g3-chat-bridge.js www/ams-g3-chat-bridge.js
+          node --check www/ams-g3-chat-bridge.js
           python3 patches/apply-g2-editor.py
           node --check www/app.js
           python3 - <<'PY'
@@ -48,6 +50,7 @@ jobs:
               if '</body>' not in content:
                   raise SystemExit('Cannot inject AMS chat patch: closing body tag missing')
               content = content.replace('</body>', marker + '</body>')
+          content = content.replace('</body>', '<script defer src="ams-g3-chat-bridge.js"></script></body>')
           html.write_text(content, encoding='utf-8')
           PY
       - uses: actions/setup-node@v4
