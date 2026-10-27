@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "generated": "2026-10-27",
+  "policy": "Only entries with SHA-256, pinned source and supported installed runtime may be installed. Never treat downloaded as inference verified.",
+  "models": [
+    {
+      "id": "sd15-emaonly",
+      "name": "Stable Diffusion 1.5 EMA-only",
+      "kind": "image",
+      "runtime": "stable-diffusion.cpp",
+      "fileName": "v1-5-pruned-emaonly.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/stable-diffusion-v1-5-archive/resolve/main/v1-5-pruned-emaonly.safetensors",
+      "sha256": "6ce0161689b3853acaa03779ec93eafe75a02f4ced659bee03f50797806fa2fa",
+      "sizeBytes": 4265146304,
+      "minAndroidApi": 28,
+      "abi": "arm64-v8a",
+      "requiredFreeBytes": 5500000000,
+      "license": "creativeml-openrail-m",
+      "source": "https://huggingface.co/Comfy-Org/stable-diffusion-v1-5-archive",
+      "status": "candidate-unverified-on-device",
+      "installable": true
+    },
+    {
+      "id": "smollm2-135m-q4",
+      "name": "SmolLM2 135M Instruct Q4_K_M",
+      "kind": "chat",
+      "runtime": "llama.cpp",
+      "source": "https://huggingface.co/QuantFactory/SmolLM2-135M-Instruct-GGUF",
+      "license": "Apache-2.0",
+      "status": "blocked-native-llama-runtime-missing",
+      "installable": false
+    },
+    {
+      "id": "vision-model",
+      "name": "Vision language model",
+      "kind": "vision",
+      "runtime": "llama.cpp multimodal",
+      "status": "blocked-model-and-runtime-not-selected",
+      "installable": false
+    },
+    {
+      "id": "flux",
+      "name": "FLUX image editing",
+      "kind": "image",
+      "runtime": "stable-diffusion.cpp",
+      "status": "blocked-no-verified-mobile-profile",
+      "installable": false
+    }
+  ]
+}
