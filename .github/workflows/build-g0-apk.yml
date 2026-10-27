@@ -3,35 +3,207 @@ on:
   workflow_dispatch:
   push:
     branches: [rebuild-g0-g3-2026-10-27]
-permissions:
-  contents: read
 jobs:
-  android:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
+      - name: Extract AMS Android web application
+        run: |
+          # Fail early with a precise diagnosis instead of an opaque unzip error.
+          test -s AMS_AI_Studio_Android_v0.1.0.zip || { echo '::error::Missing or empty AMS web application archive'; exit 1; }
+          unzip -tq AMS_AI_Studio_Android_v0.1.0.zip || { echo '::error::AMS web application archive failed integrity test'; exit 1; }
+          mkdir -p extracted
+          unzip -oq AMS_AI_Studio_Android_v0.1.0.zip -d extracted
+          test -f extracted/www/index.html
+          cp -R extracted/www .
+          test -f www/index.html
+          test -f www/app.js
+          node --check www/app.js
+      - name: Integrate AMS Editor, Chat and native AI controls
+        run: |
+          test -f patches/ams-mobile-chat.js
+          cp patches/ams-mobile-chat.js www/ams-mobile-chat.js
+          node --check www/ams-mobile-chat.js
+          # G2: remove obstructive floating LIVE PREVIEW overlay; retain native editor preview.
+          test -f patches/ams-image-engine.js
+          cp patches/ams-image-engine.js www/ams-image-engine.js
+          node --check www/ams-image-engine.js
+          test -f patches/ams-ai-system-status.js
+          cp patches/ams-ai-system-status.js www/ams-ai-system-status.js
+          node --check www/ams-ai-system-status.js
+          cp patches/ams-g3-chat-bridge.js www/ams-g3-chat-bridge.js
+          node --check www/ams-g3-chat-bridge.js
+          python3 patches/apply-g2-editor.py
+          node --check www/app.js
+          python3 - <<'PY'
+          from pathlib import Path
+          html = Path('www/index.html')
+          content = html.read_text(encoding='utf-8')
+          marker = '<script defer src="ams-mobile-chat.js"></script><script defer src="ams-image-engine.js"></script><script defer src="ams-ai-system-status.js"></script>'
+          import re
+          content = re.sub(r'<meta[^>]+name=[^>]*viewport[^>]*>', '', content, flags=re.I)
+          content = content.replace('</head>', '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head>')
+          if 'ams-ai-system-status.js' not in content:
+              if '</body>' not in content:
+                  raise SystemExit('Cannot inject AMS chat patch: closing body tag missing')
+              content = content.replace('</body>', marker + '</body>')
+          content = content.replace('</body>', '<script defer src="ams-g3-chat-bridge.js"></script></body>')
+          html.write_text(content, encoding='utf-8')
+          PY
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
-      - uses: android-actions/setup-android@v3
-      - name: Verify original G3 web assets are present
+          java-version: '21'
+      - name: Configure Android SDK
         run: |
-          test -s www/index.html
-          test -s www/app.js
-          test -s www/style.css
-          test -s www/ams-g3-chat-bridge.js
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          test -d "$SDK_ROOT"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+          echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "Android SDK directory: $SDK_ROOT"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          # Accept licenses non-interactively; fail on a real setup error.
+          yes | "$SDKMANAGER" --licenses > /tmp/ams-sdk-licenses.log 2>&1 || {
+            cat /tmp/ams-sdk-licenses.log
+            exit 1
+          }
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          # GitHub-hosted runners may already contain the pinned NDK.
+          NDK_DIR="$SDK_ROOT/ndk/27.2.12479018"
+          if [ ! -f "$NDK_DIR/build/cmake/android.toolchain.cmake" ]; then
+            for attempt in 1 2 3; do
+              echo "Installing Android NDK 27.2.12479018 (attempt $attempt/3)"
+              if "$SDKMANAGER" "ndk;27.2.12479018"; then break; fi
+              if [ "$attempt" -eq 3 ]; then
+                echo "::error::NDK download failed after three attempts"
+                exit 1
+              fi
+              sleep $((attempt * 20))
+            done
+          fi
+          test -f "$NDK_DIR/build/cmake/android.toolchain.cmake"
+          command -v cmake
+          command -v ninja
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: Generate Android project
-        run: npx cap add android
+      - name: Prepare Android project
+        run: |
+          if [ ! -d android ]; then npx cap add android; fi
+          npx cap sync android
+          test -f android/app/build.gradle
+          test -f android/app/src/main/AndroidManifest.xml
+          grep -R -q "com.amsphotography.aistudio" android/app/build.gradle android/app/src/main/AndroidManifest.xml android/app/src/main/java || { echo "Wrong AMS application ID"; exit 1; }
+          python3 - <<'PY'
+          from pathlib import Path
+          gradle = Path('android/app/build.gradle')
+          src = gradle.read_text()
+          import re
+          src, n = re.subn(r'versionCode\s+\d+', 'versionCode ' + str(1000 + int(__import__('os').environ['GITHUB_RUN_NUMBER'])), src, count=1)
+          if n != 1:
+              raise SystemExit('Android versionCode missing')
+          src, n = re.subn(r'versionName\s+["\x27][^"\x27]+["\x27]', 'versionName "0.2.0"', src, count=1)
+          if n != 1:
+              raise SystemExit('Android versionName missing')
+          gradle.write_text(src)
+          PY
+      - name: Assert native AI integrity
+        run: node tests/engine-integrity.test.cjs
+      - name: Compile Android-native SD.cpp engine and register bridge
+        run: |
+          bash native/install-engine.sh
+          test -s android/app/src/main/jniLibs/arm64-v8a/libams_sd_cli.so
+          grep -R -q 'registerPlugin(AmsImageEnginePlugin.class)' android/app/src/main/java
       - name: Build debug APK
-        run: cd android && chmod +x gradlew && ./gradlew assembleDebug --stacktrace
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+      - name: Build signed update APK (only when permanent signing secrets exist)
+        env:
+          AMS_KEYSTORE_BASE64: ${{ secrets.AMS_KEYSTORE_BASE64 }}
+          AMS_KEYSTORE_PASSWORD: ${{ secrets.AMS_KEYSTORE_PASSWORD }}
+          AMS_KEY_ALIAS: ${{ secrets.AMS_KEY_ALIAS }}
+          AMS_KEY_PASSWORD: ${{ secrets.AMS_KEY_PASSWORD }}
+          AMS_EXPECTED_CERT_SHA256: ${{ secrets.AMS_EXPECTED_CERT_SHA256 }}
+        run: |
+          if [ -z "$AMS_KEYSTORE_BASE64" ] || [ -z "$AMS_KEYSTORE_PASSWORD" ] || [ -z "$AMS_KEY_ALIAS" ] || [ -z "$AMS_KEY_PASSWORD" ] || [ -z "$AMS_EXPECTED_CERT_SHA256" ]; then
+            echo "::warning::Signed update NOT produced: configure all four permanent AMS signing secrets."
+            echo "AMS_SIGNED_UPDATE=false" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          printf '%s' "$AMS_KEYSTORE_BASE64" | base64 --decode > android/app/ams-release.jks
+          chmod 600 android/app/ams-release.jks
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('android/app/build.gradle')
+          s=p.read_text()
+          if 'signingConfigs {' in s:
+              raise SystemExit('Existing signing config requires manual review')
+          anchor='android {'
+          if anchor not in s:
+              raise SystemExit('Missing android Gradle block')
+          config="""android {
+              signingConfigs {
+                  amsUpdate {
+                      storeFile file('ams-release.jks')
+                      storePassword System.getenv('AMS_KEYSTORE_PASSWORD')
+                      keyAlias System.getenv('AMS_KEY_ALIAS')
+                      keyPassword System.getenv('AMS_KEY_PASSWORD')
+                  }
+              }
+          """
+          s=s.replace(anchor,config,1)
+          import re
+          s,n=re.subn(r'(release\s*\{)',lambda m:m.group(1)+'\n            signingConfig signingConfigs.amsUpdate',s,count=1)
+          if n!=1: raise SystemExit('Missing release build type')
+          p.write_text(s)
+          PY
+          (cd android && ./gradlew --no-daemon assembleRelease)
+          test -s android/app/build/outputs/apk/release/app-release.apk
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME}}"
+          "$SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose --print-certs android/app/build/outputs/apk/release/app-release.apk
+          CERT_SHA=$("$SDK_ROOT/build-tools/35.0.0/apksigner" verify --print-certs android/app/build/outputs/apk/release/app-release.apk | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1)
+          test -n "$CERT_SHA" || { echo "::error::Could not read signing certificate"; exit 1; }
+          if [ "${CERT_SHA,,}" != "${AMS_EXPECTED_CERT_SHA256,,}" ]; then
+            echo "::error::Signing certificate does not match approved AMS certificate. Update blocked."
+            exit 1
+          fi
+          echo "AMS_SIGNED_UPDATE=true" >> "$GITHUB_ENV"
+          rm -f android/app/ams-release.jks
+      - uses: actions/upload-artifact@v4
+        if: env.AMS_SIGNED_UPDATE == 'true'
+        with:
+          name: AMS-AI-Studio-SIGNED-UPDATE-APK
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+      - name: Verify APK and bundled web application
+        run: |
+          test -s android/app/build/outputs/apk/debug/app-debug.apk
+          unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/index.html'
+          unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/ams-mobile-chat.js'
+          if unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fxq 'assets/public/ams-sticky-editor.js'; then echo '::error::Floating overlay still bundled'; exit 1; fi
+          unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/ams-image-engine.js'
+          unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/ams-ai-system-status.js'
+          unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'lib/arm64-v8a/libams_sd_cli.so'
+          unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/ams-sdcpp-MIT-LICENSE.txt'
+          unzip -p android/app/build/outputs/apk/debug/app-debug.apk assets/public/index.html | grep -q 'ams-mobile-chat.js'
+          if unzip -p android/app/build/outputs/apk/debug/app-debug.apk assets/public/index.html | grep -Fq 'ams-sticky-editor.js'; then echo '::error::Overlay script still injected'; exit 1; fi
+          unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx "assets/public/app.js"
+          unzip -p android/app/build/outputs/apk/debug/app-debug.apk assets/public/app.js | grep -Fq 'Export dimensions differ from original'
+          unzip -p android/app/build/outputs/apk/debug/app-debug.apk assets/public/app.js | grep -Fq 'ctx.drawImage(im,0,0,width,height)'
+          echo "G2 full-resolution export patch included (device save still requires runtime verification)."
+          echo "APK built with SD.cpp native binary and AMS image engine UI. On-device inference still requires imported weights and a runtime test."
       - uses: actions/upload-artifact@v4
         with:
-          name: AMS-G0-debug-APK
+          name: AMS-AI-Studio-debug-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
