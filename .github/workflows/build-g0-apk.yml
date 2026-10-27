@@ -122,6 +122,8 @@ jobs:
         run: node tests/engine-integrity.test.cjs
       - name: Compile Android-native SD.cpp engine and register bridge
         run: |
+          cp native/ams-model-catalog.json android/app/src/main/assets/ams-model-catalog.json
+          python3 -m json.tool android/app/src/main/assets/ams-model-catalog.json >/dev/null
           bash native/install-engine.sh
           python3 - <<'PY'
           from pathlib import Path
@@ -210,6 +212,7 @@ jobs:
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/ams-image-engine.js'
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/ams-ai-system-status.js'
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/ams-engine-updates.js'
+          unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/ams-model-catalog.json'
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'lib/arm64-v8a/libams_sd_cli.so'
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/ams-sdcpp-MIT-LICENSE.txt'
           unzip -p android/app/build/outputs/apk/debug/app-debug.apk assets/public/index.html | grep -q 'ams-mobile-chat.js'
