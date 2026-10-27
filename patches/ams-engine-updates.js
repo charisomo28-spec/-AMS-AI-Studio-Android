@@ -31,15 +31,16 @@
         const scan = await api.scan();
         const catalog = await api.catalog();
         const models = Array.isArray(catalog.models) ? catalog.models : [];
-        const eligible = models.find(m => m.id === 'sd15-emaonly' && m.eligible);
+        const eligible = models.find(m => m.id === 'sd15-emaonly' && m.eligible && Number(scan.freeBytes) >= 5500000000);
         installButton.disabled = !eligible;
         output.textContent = 'Android API: ' + scan.androidApi +
           '\nCPU: ' + (scan.abis || []).join(', ') +
           '\nFree storage: ' + (Number(scan.freeBytes)/1073741824).toFixed(1) + ' GiB' +
-          '\nVerified compatible models: ' + models.length +
+          '\nCatalog entries: ' + models.length + '\nInstallable on this device: ' + models.filter(m => m.eligible).length +
           '\nInstaller: ' + (scan.modelInstallerReady ? 'AVAILABLE' : 'NOT READY') +
           '\n' + (catalog.reason || scan.reason || '');
       } catch (err) {
+        installButton.disabled = true;
         output.textContent = 'FAILED: ' + (err?.message || String(err));
       } finally { button.disabled = false; }
     });
@@ -60,7 +61,7 @@
           output.textContent = 'Downloaded and SHA-256 verified. Inference still requires testing.\\n' + result.state;
         } finally { await listener.remove(); }
       } catch (err) { output.textContent = 'FAILED: ' + (err?.message || String(err)); }
-      finally { button.disabled = false; installButton.disabled = false; }
+      finally { button.disabled = false; installButton.disabled = true; }
     });
     card.append(heading, button, installButton, output);
     const first = more.querySelector('.panel');
