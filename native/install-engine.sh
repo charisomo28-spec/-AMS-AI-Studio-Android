@@ -67,13 +67,13 @@ if "registerPlugin(AmsImageEnginePlugin.class)" not in src:
     """public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(android.os.Bundle savedInstanceState) {
-        registerPlugin(AmsImageEnginePlugin.class);
+        registerPlugin(AmsImageEnginePlugin.class);\n        registerPlugin(AmsPhotoSavePlugin.class);
         super.onCreate(savedInstanceState);
     }
 """, 1)
 target.write_text(src)
 plugin_src = root/"native/AmsImageEnginePlugin.java"
-(target.parent/"AmsImageEnginePlugin.java").write_bytes(plugin_src.read_bytes())
+(target.parent/"AmsImageEnginePlugin.java").write_bytes(plugin_src.read_bytes())\n(target.parent/"AmsPhotoSavePlugin.java").write_bytes((root/"native/AmsPhotoSavePlugin.java").read_bytes())
 gradle = root/"android/app/build.gradle"
 content = gradle.read_text()
 if "useLegacyPackaging true" not in content:
