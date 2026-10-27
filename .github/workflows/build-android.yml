@@ -27,7 +27,6 @@ jobs:
           test -f patches/ams-mobile-chat.js
           cp patches/ams-mobile-chat.js www/ams-mobile-chat.js
           node --check www/ams-mobile-chat.js
-          test -f patches/ams-sticky-editor.js
           # G2: remove obstructive floating LIVE PREVIEW overlay; retain native editor preview.
           test -f patches/ams-image-engine.js
           cp patches/ams-image-engine.js www/ams-image-engine.js
@@ -41,7 +40,7 @@ jobs:
           from pathlib import Path
           html = Path('www/index.html')
           content = html.read_text(encoding='utf-8')
-          marker = '<script defer src="ams-mobile-chat.js"></script><script defer src="ams-sticky-editor.js"></script><script defer src="ams-image-engine.js"></script><script defer src="ams-ai-system-status.js"></script>'
+          marker = '<script defer src="ams-mobile-chat.js"></script><script defer src="ams-image-engine.js"></script><script defer src="ams-ai-system-status.js"></script>'
           import re
           content = re.sub(r'<meta[^>]+name=[^>]*viewport[^>]*>', '', content, flags=re.I)
           content = content.replace('</head>', '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head>')
