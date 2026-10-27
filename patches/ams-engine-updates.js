@@ -13,6 +13,11 @@
     const button = document.createElement('button');
     button.type = 'button';
     button.textContent = 'Check for AI updates';
+    const installButton = document.createElement('button');
+    installButton.type = 'button';
+    installButton.textContent = 'Download & install compatible image model (~4.3 GB)';
+    installButton.disabled = true;
+    installButton.style.marginTop = '10px';
     const output = document.createElement('pre');
     output.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;margin-top:12px';
     output.setAttribute('aria-live','polite');
@@ -26,6 +31,8 @@
         const scan = await api.scan();
         const catalog = await api.catalog();
         const models = Array.isArray(catalog.models) ? catalog.models : [];
+        const eligible = models.find(m => m.id === 'sd15-emaonly' && m.eligible);
+        installButton.disabled = !eligible;
         output.textContent = 'Android API: ' + scan.androidApi +
           '\nCPU: ' + (scan.abis || []).join(', ') +
           '\nFree storage: ' + (Number(scan.freeBytes)/1073741824).toFixed(1) + ' GiB' +
@@ -36,7 +43,26 @@
         output.textContent = 'FAILED: ' + (err?.message || String(err));
       } finally { button.disabled = false; }
     });
-    card.append(heading, button, output);
+    installButton.addEventListener('click', async () => {
+      const api = window.Capacitor?.Plugins?.AmsEngineManager;
+      if (!api?.install) { output.textContent = 'Native installer unavailable'; return; }
+      if (!window.confirm('Download approximately 4.3 GB over your connection? This model has not yet passed an on-device inference test.')) return;
+      installButton.disabled = true;
+      button.disabled = true;
+      output.textContent = 'Starting verified model download…';
+      try {
+        const listener = await api.addListener('updateProgress', ev => {
+          const pct = ev.totalBytes ? Math.floor(ev.bytes * 100 / ev.totalBytes) : 0;
+          output.textContent = ev.stage + ' ' + pct + '%\\n' + (ev.message || '');
+        });
+        try {
+          const result = await api.install({id:'sd15-emaonly'});
+          output.textContent = 'Downloaded and SHA-256 verified. Inference still requires testing.\\n' + result.state;
+        } finally { await listener.remove(); }
+      } catch (err) { output.textContent = 'FAILED: ' + (err?.message || String(err)); }
+      finally { button.disabled = false; installButton.disabled = false; }
+    });
+    card.append(heading, button, installButton, output);
     const first = more.querySelector('.panel');
     if (first?.parentNode) first.parentNode.insertBefore(card, first.nextSibling);
     else more.append(card);
