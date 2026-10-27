@@ -130,8 +130,9 @@ jobs:
           AMS_KEYSTORE_PASSWORD: ${{ secrets.AMS_KEYSTORE_PASSWORD }}
           AMS_KEY_ALIAS: ${{ secrets.AMS_KEY_ALIAS }}
           AMS_KEY_PASSWORD: ${{ secrets.AMS_KEY_PASSWORD }}
+          AMS_EXPECTED_CERT_SHA256: ${{ secrets.AMS_EXPECTED_CERT_SHA256 }}
         run: |
-          if [ -z "$AMS_KEYSTORE_BASE64" ] || [ -z "$AMS_KEYSTORE_PASSWORD" ] || [ -z "$AMS_KEY_ALIAS" ] || [ -z "$AMS_KEY_PASSWORD" ]; then
+          if [ -z "$AMS_KEYSTORE_BASE64" ] || [ -z "$AMS_KEYSTORE_PASSWORD" ] || [ -z "$AMS_KEY_ALIAS" ] || [ -z "$AMS_KEY_PASSWORD" ] || [ -z "$AMS_EXPECTED_CERT_SHA256" ]; then
             echo "::warning::Signed update NOT produced: configure all four permanent AMS signing secrets."
             echo "AMS_SIGNED_UPDATE=false" >> "$GITHUB_ENV"
             exit 0
@@ -159,7 +160,7 @@ jobs:
           """
           s=s.replace(anchor,config,1)
           import re
-          s,n=re.subn(r'(release\\s*\\{)',r'\\1\\n            signingConfig signingConfigs.amsUpdate',s,count=1)
+          s,n=re.subn(r'(release\s*\{)',lambda m:m.group(1)+'\n            signingConfig signingConfigs.amsUpdate',s,count=1)
           if n!=1: raise SystemExit('Missing release build type')
           p.write_text(s)
           PY
@@ -167,6 +168,12 @@ jobs:
           test -s android/app/build/outputs/apk/release/app-release.apk
           SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME}}"
           "$SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose --print-certs android/app/build/outputs/apk/release/app-release.apk
+          CERT_SHA=$("$SDK_ROOT/build-tools/35.0.0/apksigner" verify --print-certs android/app/build/outputs/apk/release/app-release.apk | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1)
+          test -n "$CERT_SHA" || { echo "::error::Could not read signing certificate"; exit 1; }
+          if [ "${CERT_SHA,,}" != "${AMS_EXPECTED_CERT_SHA256,,}" ]; then
+            echo "::error::Signing certificate does not match approved AMS certificate. Update blocked."
+            exit 1
+          fi
           echo "AMS_SIGNED_UPDATE=true" >> "$GITHUB_ENV"
           rm -f android/app/ams-release.jks
       - uses: actions/upload-artifact@v4
