@@ -30,7 +30,8 @@
     }
     // Native picker, generation and output preview are implemented in the existing engine panel.
     // Do not claim conversational understanding: this is a prompt handoff only.
-    if (typeof original === 'function') original();
+    // Do not invoke the old hardcoded chat response when a native model is ready.
+    input.value = '';
     const launcher = document.getElementById('ams-ai-open');
     if (!launcher) { append('Native AI editor panel unavailable.'); return; }
     launcher.click();
