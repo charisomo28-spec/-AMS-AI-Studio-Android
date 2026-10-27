@@ -122,6 +122,8 @@ jobs:
         run: node tests/engine-integrity.test.cjs
       - name: Compile Android-native SD.cpp engine and register bridge
         run: |
+          python3 tests/model-catalog.test.py
+          mkdir -p android/app/src/main/assets
           cp native/ams-model-catalog.json android/app/src/main/assets/ams-model-catalog.json
           python3 -m json.tool android/app/src/main/assets/ams-model-catalog.json >/dev/null
           bash native/install-engine.sh
