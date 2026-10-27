@@ -48,7 +48,7 @@ async function exportJpg(){
     });
     const saved=await saver.saveJpeg({
       base64,
-      fileName:'AMS_EDIT_'+current.name.replace(/\\.[^.]+$/,'')+'_'+Date.now()+'.jpg'
+      fileName:'AMS_EDIT_'+current.name.replace(/\.[^.]+$/,'')+'_'+Date.now()+'.jpg'
     });
     if(!saved.uri||saved.bytes!==blob.size)throw Error('Android save confirmation failed');
     bubble('Saved '+width+' × '+height+' JPEG to '+saved.location+'/'+saved.fileName,'ai');
