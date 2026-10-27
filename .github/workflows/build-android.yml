@@ -124,6 +124,57 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug
+      - name: Build signed update APK (only when permanent signing secrets exist)
+        env:
+          AMS_KEYSTORE_BASE64: ${{ secrets.AMS_KEYSTORE_BASE64 }}
+          AMS_KEYSTORE_PASSWORD: ${{ secrets.AMS_KEYSTORE_PASSWORD }}
+          AMS_KEY_ALIAS: ${{ secrets.AMS_KEY_ALIAS }}
+          AMS_KEY_PASSWORD: ${{ secrets.AMS_KEY_PASSWORD }}
+        run: |
+          if [ -z "$AMS_KEYSTORE_BASE64" ] || [ -z "$AMS_KEYSTORE_PASSWORD" ] || [ -z "$AMS_KEY_ALIAS" ] || [ -z "$AMS_KEY_PASSWORD" ]; then
+            echo "::warning::Signed update NOT produced: configure all four permanent AMS signing secrets."
+            echo "AMS_SIGNED_UPDATE=false" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          printf '%s' "$AMS_KEYSTORE_BASE64" | base64 --decode > android/app/ams-release.jks
+          chmod 600 android/app/ams-release.jks
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('android/app/build.gradle')
+          s=p.read_text()
+          if 'signingConfigs {' in s:
+              raise SystemExit('Existing signing config requires manual review')
+          anchor='android {'
+          if anchor not in s:
+              raise SystemExit('Missing android Gradle block')
+          config="""android {
+              signingConfigs {
+                  amsUpdate {
+                      storeFile file('ams-release.jks')
+                      storePassword System.getenv('AMS_KEYSTORE_PASSWORD')
+                      keyAlias System.getenv('AMS_KEY_ALIAS')
+                      keyPassword System.getenv('AMS_KEY_PASSWORD')
+                  }
+              }
+          """
+          s=s.replace(anchor,config,1)
+          import re
+          s,n=re.subn(r'(release\\s*\\{)',r'\\1\\n            signingConfig signingConfigs.amsUpdate',s,count=1)
+          if n!=1: raise SystemExit('Missing release build type')
+          p.write_text(s)
+          PY
+          (cd android && ./gradlew --no-daemon assembleRelease)
+          test -s android/app/build/outputs/apk/release/app-release.apk
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME}}"
+          "$SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose --print-certs android/app/build/outputs/apk/release/app-release.apk
+          echo "AMS_SIGNED_UPDATE=true" >> "$GITHUB_ENV"
+          rm -f android/app/ams-release.jks
+      - uses: actions/upload-artifact@v4
+        if: env.AMS_SIGNED_UPDATE == 'true'
+        with:
+          name: AMS-AI-Studio-SIGNED-UPDATE-APK
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
       - name: Verify APK and bundled web application
         run: |
           test -s android/app/build/outputs/apk/debug/app-debug.apk
