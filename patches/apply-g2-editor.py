@@ -37,13 +37,20 @@ async function exportJpg(){
     const verified=decoded.width===width&&decoded.height===height;
     decoded.close();
     if(!verified)throw Error('Export dimensions differ from original');
-    const objectUrl=URL.createObjectURL(blob);
-    const link=document.createElement('a');
-    link.href=objectUrl;
-    link.download='AMS_EDIT_'+current.name.replace(/\.[^.]+$/,'')+'.jpg';
-    document.body.appendChild(link);link.click();link.remove();
-    setTimeout(()=>URL.revokeObjectURL(objectUrl),30000);
-    bubble('JPEG created at '+width+' × '+height+'. Check Downloads to confirm Android saved it.','ai');
+    if(!window.Capacitor?.isNativePlatform?.())throw Error('Native Android save unavailable');
+    const saver=window.Capacitor.registerPlugin('AmsPhotoSave');
+    const base64=await new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onerror=()=>reject(Error('JPEG base64 conversion failed'));
+      reader.onload=()=>resolve(String(reader.result).split(',')[1]);
+      reader.readAsDataURL(blob);
+    });
+    const saved=await saver.saveJpeg({
+      base64,
+      fileName:'AMS_EDIT_'+current.name.replace(/\\.[^.]+$/,'')+'_'+Date.now()+'.jpg'
+    });
+    if(!saved.uri||saved.bytes!==blob.size)throw Error('Android save confirmation failed');
+    bubble('Saved '+width+' × '+height+' JPEG to '+saved.location+'/'+saved.fileName,'ai');
   }catch(e){
     bubble('Export failed: '+e.message,'ai');
     alert('Export failed: '+e.message);
