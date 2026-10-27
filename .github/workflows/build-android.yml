@@ -12,6 +12,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Extract AMS Android web application
         run: |
+          # Fail early with a precise diagnosis instead of an opaque unzip error.
+          test -s AMS_AI_Studio_Android_v0.1.0.zip || { echo '::error::Missing or empty AMS web application archive'; exit 1; }
+          unzip -tq AMS_AI_Studio_Android_v0.1.0.zip || { echo '::error::AMS web application archive failed integrity test'; exit 1; }
           mkdir -p extracted
           unzip -oq AMS_AI_Studio_Android_v0.1.0.zip -d extracted
           test -f extracted/www/index.html
