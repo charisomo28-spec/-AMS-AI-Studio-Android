@@ -28,8 +28,7 @@ jobs:
           cp patches/ams-mobile-chat.js www/ams-mobile-chat.js
           node --check www/ams-mobile-chat.js
           test -f patches/ams-sticky-editor.js
-          cp patches/ams-sticky-editor.js www/ams-sticky-editor.js
-          node --check www/ams-sticky-editor.js
+          # G2: remove obstructive floating LIVE PREVIEW overlay; retain native editor preview.
           test -f patches/ams-image-engine.js
           cp patches/ams-image-engine.js www/ams-image-engine.js
           node --check www/ams-image-engine.js
@@ -106,7 +105,7 @@ jobs:
           gradle = Path('android/app/build.gradle')
           src = gradle.read_text()
           import re
-          src, n = re.subn(r'versionCode\s+\d+', 'versionCode 3', src, count=1)
+          src, n = re.subn(r'versionCode\s+\d+', 'versionCode ' + str(1000 + int(__import__('os').environ['GITHUB_RUN_NUMBER'])), src, count=1)
           if n != 1:
               raise SystemExit('Android versionCode missing')
           src, n = re.subn(r'versionName\s+["\x27][^"\x27]+["\x27]', 'versionName "0.2.0"', src, count=1)
@@ -131,12 +130,13 @@ jobs:
           test -s android/app/build/outputs/apk/debug/app-debug.apk
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/index.html'
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/ams-mobile-chat.js'
-          unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/ams-sticky-editor.js'
+          if unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fxq 'assets/public/ams-sticky-editor.js'; then echo '::error::Floating overlay still bundled'; exit 1; fi
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/ams-image-engine.js'
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/public/ams-ai-system-status.js'
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'lib/arm64-v8a/libams_sd_cli.so'
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx 'assets/ams-sdcpp-MIT-LICENSE.txt'
           unzip -p android/app/build/outputs/apk/debug/app-debug.apk assets/public/index.html | grep -q 'ams-mobile-chat.js'
+          if unzip -p android/app/build/outputs/apk/debug/app-debug.apk assets/public/index.html | grep -Fq 'ams-sticky-editor.js'; then echo '::error::Overlay script still injected'; exit 1; fi
           unzip -Z1 android/app/build/outputs/apk/debug/app-debug.apk | grep -Fx "assets/public/app.js"
           unzip -p android/app/build/outputs/apk/debug/app-debug.apk assets/public/app.js | grep -Fq 'Export dimensions differ from original'
           unzip -p android/app/build/outputs/apk/debug/app-debug.apk assets/public/app.js | grep -Fq 'ctx.drawImage(im,0,0,width,height)'
